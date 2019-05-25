@@ -816,7 +816,7 @@ class Listbox(Element):
         bg = background_color if background_color else DEFAULT_INPUT_ELEMENTS_COLOR
         fg = text_color if text_color is not None else DEFAULT_INPUT_TEXT_COLOR
         self.RightClickMenu = right_click_menu
-
+        self.vsb = None         # type: tk.Scrollbar
         super().__init__(ELEM_TYPE_INPUT_LISTBOX, size=size, auto_size_text=auto_size_text, font=font,
                          background_color=bg, text_color=fg, key=key, pad=pad, tooltip=tooltip, visible=visible)
 
@@ -839,9 +839,10 @@ class Listbox(Element):
                 pass
         if visible is False:
             self.TKListbox.pack_forget()
+            self.vsb.pack_forget()
         elif visible is True:
             self.TKListbox.pack()
-
+            self.vsb.pack()
 
     def SetValue(self, values):
         for index, item in enumerate(self.Values):
@@ -1087,8 +1088,7 @@ class Spin(Element):
 #                           Multiline                                    #
 # ---------------------------------------------------------------------- #
 class Multiline(Element):
-    def __init__(self, default_text='', enter_submits=False, disabled=False, autoscroll=False, size=(None, None),
-                 auto_size_text=None, background_color=None, text_color=None, change_submits=False, enable_events=False,do_not_clear=True, key=None, focus=False, font=None, pad=None, tooltip=None, right_click_menu=None, visible=True):
+    def __init__(self, default_text='', enter_submits=False, disabled=False, autoscroll=False, border_width=None, size=(None, None), auto_size_text=None, background_color=None, text_color=None, change_submits=False, enable_events=False,do_not_clear=True, key=None, focus=False, font=None, pad=None, tooltip=None, right_click_menu=None, visible=True):
         '''
         Multiline
         :param default_text:
@@ -1121,6 +1121,7 @@ class Multiline(Element):
         self.Disabled = disabled
         self.ChangeSubmits = change_submits or enable_events
         self.RightClickMenu = right_click_menu
+        self.BorderWidth = border_width if border_width is not None else DEFAULT_BORDER_WIDTH
 
         super().__init__(ELEM_TYPE_INPUT_MULTILINE, size=size, auto_size_text=auto_size_text, background_color=bg,
                          text_color=fg, key=key, pad=pad, tooltip=tooltip, font=font or DEFAULT_FONT, visible=visible)
@@ -1616,7 +1617,6 @@ class Button(Element):
                 self.ParentForm.TKroot.quit()
             if self.ParentForm.NonBlocking:
                 self.ParentForm.TKroot.destroy()
-                # _my_windows.Decrement()
                 Window.DecrementOpenCount()
         elif self.BType == BUTTON_TYPE_READ_FORM:  # LEAVE THE WINDOW OPEN!! DO NOT CLOSE
             # first, get the results table built
@@ -1633,7 +1633,6 @@ class Button(Element):
             if self.ParentForm.NonBlocking:
                 self.ParentForm.TKroot.destroy()
                 Window.DecrementOpenCount()
-                # _my_windows.Decrement()
         elif self.BType == BUTTON_TYPE_CALENDAR_CHOOSER:  # this is a return type button so GET RESULTS and destroy window
             should_submit_window = False
             root = tk.Toplevel()
@@ -3538,7 +3537,6 @@ class Window:
     hidden_master_root = None
     animated_popup_dict = {}
     container_element_counter = 0           # used to get a number of Container Elements (Frame, Column, Tab)
-
     def __init__(self, title, layout=None, default_element_size=DEFAULT_ELEMENT_SIZE, default_button_element_size=(None, None),
                  auto_size_text=None, auto_size_buttons=None, location=(None, None), size=(None, None), element_padding=None, margins=(None, None), button_color=None, font=None,
                  progress_bar_color=(None, None), background_color=None, border_depth=None, auto_close=False,
@@ -3633,7 +3631,7 @@ class Window:
         self.ContainerElemementNumber = Window.GetAContainerNumber()
         self.AllKeysDict = {}
         self.TransparentColor = transparent_color
-
+        self.UniqueKeyCounter = 0
         if layout is not None:
             self.Layout(layout)
 
@@ -3931,6 +3929,8 @@ class Window:
         return self
 
     def FindElement(self, key, silent_on_error=False):
+        # print(f'In find elem key={key}', self.AllKeysDict)
+
         try:
             element = self.AllKeysDict[key]
         except KeyError:
@@ -3949,7 +3949,7 @@ class Window:
         return element
 
     Element =  FindElement          # Shortcut function
-
+    Find = FindElement
 
     def FindElementWithFocus(self):
         element = _FindElementWithFocusInSubForm(self)
@@ -3985,7 +3985,10 @@ class Window:
                         top_window.DictionaryKeyCounter += 1
                 if element.Key is not None:
                     if element.Key in key_dict.keys():
-                        print('*** Duplicate key found in your layout {} ***'.format(element.Key))
+                        print('*** Duplicate key found in your layout {} ***'.format(element.Key)) if element.Type != ELEM_TYPE_BUTTON else None
+                        element.Key = element.Key + str(self.UniqueKeyCounter)
+                        self.UniqueKeyCounter += 1
+                        print('*** Replaced new key with {} ***'.format(element.Key)) if element.Type != ELEM_TYPE_BUTTON else None
                     key_dict[element.Key] = element
         return key_dict
 
@@ -4338,36 +4341,6 @@ def Exit(button_text='Exit', size=(None, None), auto_size_button=None, button_co
                   bind_return_key=bind_return_key, focus=focus, pad=pad, key=key)
 
 
-# -------------------------  Up arrow BUTTON Element lazy function  ------------------------- #
-def Up(button_text='▲', size=(None, None), auto_size_button=None, button_color=None, disabled=False, tooltip=None,
-        font=None, bind_return_key=True, focus=False, pad=None, key=None):
-    return Button(button_text=button_text, button_type=BUTTON_TYPE_READ_FORM, tooltip=tooltip, size=size,
-                  auto_size_button=auto_size_button, button_color=button_color, font=font, disabled=disabled,
-                  bind_return_key=bind_return_key, focus=focus, pad=pad, key=key)
-
-# -------------------------  Down arrow BUTTON Element lazy function  ------------------------- #
-def Down(button_text='▼', size=(None, None), auto_size_button=None, button_color=None, disabled=False, tooltip=None,
-        font=None, bind_return_key=True, focus=False, pad=None, key=None):
-    return Button(button_text=button_text, button_type=BUTTON_TYPE_READ_FORM, tooltip=tooltip, size=size,
-                  auto_size_button=auto_size_button, button_color=button_color, font=font, disabled=disabled,
-                  bind_return_key=bind_return_key, focus=focus, pad=pad, key=key)
-
-# -------------------------  Left arrow BUTTON Element lazy function  ------------------------- #
-def Left(button_text='◄', size=(None, None), auto_size_button=None, button_color=None, disabled=False, tooltip=None,
-        font=None, bind_return_key=True, focus=False, pad=None, key=None):
-    return Button(button_text=button_text, button_type=BUTTON_TYPE_READ_FORM, tooltip=tooltip, size=size,
-                  auto_size_button=auto_size_button, button_color=button_color, font=font, disabled=disabled,
-                  bind_return_key=bind_return_key, focus=focus, pad=pad, key=key)
-
-
-# -------------------------  Right arrow BUTTON Element lazy function  ------------------------- #
-def Right(button_text='►', size=(None, None), auto_size_button=None, button_color=None, disabled=False, tooltip=None,
-        font=None, bind_return_key=True, focus=False, pad=None, key=None):
-    return Button(button_text=button_text, button_type=BUTTON_TYPE_READ_FORM, tooltip=tooltip, size=size,
-                  auto_size_button=auto_size_button, button_color=button_color, font=font, disabled=disabled,
-                  bind_return_key=bind_return_key, focus=focus, pad=pad, key=key)
-
-
 # -------------------------  YES BUTTON Element lazy function  ------------------------- #
 def Yes(button_text='Yes', size=(None, None), auto_size_button=None, button_color=None, disabled=False, tooltip=None,
         font=None, bind_return_key=True, focus=False, pad=None, key=None):
@@ -4478,12 +4451,12 @@ def ColorChooserButton(button_text, target=(None, None), image_filename=None, im
 def AddToReturnDictionary(form, element, value):
     form.ReturnValuesDictionary[element.Key] = value
     return
-    if element.Key is None:
-        form.ReturnValuesDictionary[form.DictionaryKeyCounter] = value
-        element.Key = form.DictionaryKeyCounter
-        form.DictionaryKeyCounter += 1
-    else:
-        form.ReturnValuesDictionary[element.Key] = value
+    # if element.Key is None:
+    #     form.ReturnValuesDictionary[form.DictionaryKeyCounter] = value
+    #     element.Key = form.DictionaryKeyCounter
+    #     form.DictionaryKeyCounter += 1
+    # else:
+    #     form.ReturnValuesDictionary[element.Key] = value
 
 
 def AddToReturnList(form, value):
@@ -5095,7 +5068,7 @@ def PackFormIntoFrame(form, containing_frame, toplevel_form):
                 elif toplevel_form.TextJustification is not None:
                     justification = toplevel_form.TextJustification
                 else:
-                    justification = DEFAULT_TEXT_JUSTIFICATION
+                    justification = DEFAULT_TEXT_JUSTIFICAION
                 justify = tk.LEFT if justification == 'left' else tk.CENTER if justification == 'center' else tk.RIGHT
                 anchor = tk.NW if justification == 'left' else tk.N if justification == 'center' else tk.NE
                 # tktext_label = tk.Label(tk_row_frame, textvariable=stringvar, width=width, height=height,
@@ -5293,8 +5266,7 @@ def PackFormIntoFrame(form, containing_frame, toplevel_form):
                     justification = DEFAULT_TEXT_JUSTIFICATION
                 justify = tk.LEFT if justification == 'left' else tk.CENTER if justification == 'center' else tk.RIGHT
                 # anchor = tk.NW if justification == 'left' else tk.N if justification == 'center' else tk.NE
-                element.TKEntry = element.Widget = tk.Entry(tk_row_frame, width=element_size[0], textvariable=element.TKStringVar,
-                                           bd=border_depth, font=font, show=show, justify=justify)
+                element.TKEntry = element.Widget = tk.Entry(tk_row_frame, width=element_size[0], textvariable=element.TKStringVar, bd=border_depth, font=font, show=show, justify=justify)
                 if element.ChangeSubmits:
                     element.TKEntry.bind('<Key>', element.KeyboardHandler)
                 element.TKEntry.bind('<Return>', element.ReturnKeyHandler)
@@ -5421,7 +5393,8 @@ def PackFormIntoFrame(form, containing_frame, toplevel_form):
                                                     timeout=DEFAULT_TOOLTIP_TIME)
             # -------------------------  LISTBOX element  ------------------------- #
             elif element_type == ELEM_TYPE_INPUT_LISTBOX:
-                max_line_len = max([len(str(l)) for l in element.Values]) if len(element.Values) != 0 else 0
+                element = element            # type: Listbox
+                max_line_len = max([len(str(l)) for l in element.Values]) if len(element.Values) else 0
                 if auto_size_text is False:
                     width = element_size[0]
                 else:
@@ -5440,13 +5413,14 @@ def PackFormIntoFrame(form, containing_frame, toplevel_form):
                     element.TKListbox.configure(fg=text_color)
                 if element.ChangeSubmits:
                     element.TKListbox.bind('<<ListboxSelect>>', element.ListboxSelectHandler)
-                vsb = tk.Scrollbar(listbox_frame, orient="vertical", command=element.TKListbox.yview)
-                element.TKListbox.configure(yscrollcommand=vsb.set)
+                element.vsb = tk.Scrollbar(listbox_frame, orient="vertical", command=element.TKListbox.yview)
+                element.TKListbox.configure(yscrollcommand=element.vsb.set)
                 element.TKListbox.pack(side=tk.LEFT)
-                vsb.pack(side=tk.LEFT, fill='y')
+                element.vsb.pack(side=tk.LEFT, fill='y')
                 listbox_frame.pack(side=tk.LEFT, padx=elementpad[0], pady=elementpad[1])
                 if element.Visible is False:
                     listbox_frame.pack_forget()
+                    element.vsb.pack_forget()
                 if element.BindReturnKey:
                     element.TKListbox.bind('<Return>', element.ListboxSelectHandler)
                     element.TKListbox.bind('<Double-Button-1>', element.ListboxSelectHandler)
@@ -5466,8 +5440,8 @@ def PackFormIntoFrame(form, containing_frame, toplevel_form):
                 element = element       # type: Multiline
                 default_text = element.DefaultText
                 width, height = element_size
-                element.TKText = element.Widget = tk.scrolledtext.ScrolledText(tk_row_frame, width=width, height=height, wrap='word',
-                                                              bd=border_depth, font=font, relief=tk.FLAT)
+                border_depth = element.BorderWidth
+                element.TKText = element.Widget = tk.scrolledtext.ScrolledText(tk_row_frame, width=width, height=height, wrap='word', bd=border_depth, font=font, relief=RELIEF_SUNKEN)
                 element.TKText.insert(1.0, default_text)  # set the default text
                 if element.BackgroundColor is not None and element.BackgroundColor != COLOR_SYSTEM_DEFAULT:
                     element.TKText.configure(background=element.BackgroundColor)
@@ -6210,7 +6184,6 @@ def StartupTK(my_flex_form:Window):
     else:
         root = tk.Toplevel()
 
-
     try:
         root.attributes('-alpha', 0)  # hide window while building it. makes for smoother 'paint'
     except:
@@ -6560,7 +6533,7 @@ def PopupScrolled(*args, button_color=None, yes_no=False, auto_close=False, auto
     window.AddRow(Multiline(complete_output, size=(max_line_width, height_computed)))
     pad = max_line_total - 15 if max_line_total > 15 else 1
     # show either an OK or Yes/No depending on paramater
-    button = DummyButton if non_blocking else Button
+    button = DummyButton if non_blocking else CloseButton
     if yes_no:
         window.AddRow(Text('', size=(pad, 1), auto_size_text=False), button('Yes'), button('No'))
     else:
@@ -6570,6 +6543,7 @@ def PopupScrolled(*args, button_color=None, yes_no=False, auto_close=False, auto
         button, values = window.Read(timeout=0)
     else:
         button, values = window.Read()
+        # window.Close()
     return button
 
 
@@ -7592,8 +7566,7 @@ def PopupGetFolder(message, title=None, default_path='', no_window=False, size=(
     if button != 'Ok':
         return None
     else:
-        path = values['_INPUT_']
-        return path
+        return values['_INPUT_']
 
 
 
@@ -7732,6 +7705,8 @@ def PopupAnimated(image_source, message=None, background_color=None, text_color=
 
     window.Refresh()        # call refresh instead of Read to save significant CPU time
 
+
+
 """
                        d8b          
                        Y8P          
@@ -7837,6 +7812,7 @@ def main():
                     # background_color='black',
                     right_click_menu=['&Right', ['Right', '!&Click', '&Menu', 'E&xit', 'Properties']],
                     # transparent_color= '#9FB8AD',
+                    resizable=False,
                     ).Finalize()
     graph_elem.DrawCircle((200, 200), 50, 'blue')
     i = 0
@@ -7857,12 +7833,9 @@ def main():
         window.Element('_IMAGE_').UpdateAnimation(DEFAULT_BASE64_LOADING_GIF, time_between_frames=50)
         i += 1
         if event == 'Button':
-            print(window.AllKeysDict)
             window.Element('_TEXT1_').SetTooltip('NEW TEXT')
             window.SetTransparentColor( '#9FB8AD')
-            # window.TKroot.wm_attributes("-transparent", '#9FB8AD')
-            # window.TKroot.wm_attributes("-transparentcolor", '#9FB8AD')
-
+            window.Maximize()
         # TimerStop()
     window.Close()
 
